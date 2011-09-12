@@ -103,10 +103,10 @@ abstract class Email_Driver {
 	 * Sets the from address and name
 	 *
 	 */
-	public function from(string $email, $name = false)
+	public function from($email, $name = false)
 	{
-		$this->config['from']['name'] = (string) $name;
 		$this->config['from']['email'] = (string) $email;
+		$this->config['from']['name'] = (is_string($name)) ? $name : false;
 		
 		return $this;
 	}
@@ -342,14 +342,14 @@ abstract class Email_Driver {
 		{
 			foreach($this->{$list} as $recipient)
 			{
-				if( ! filter_var($address, FILTER_VALIDATE_EMAIL))
+				if( ! filter_var($recipient['email'], FILTER_VALIDATE_EMAIL))
 				{
-					$failed = $recipient;
+					$failed[][$list] = $recipient;
 				}
 			}
 		}
 		
-		if(count($faild) === 0)
+		if(count($failed) === 0)
 		{
 			return true;
 		}
@@ -362,19 +362,19 @@ abstract class Email_Driver {
 	 */
 	public function send($validate = null)
 	{
-		if((empty($this->to) and empty($this->cc) and empty($this->bcc)) or empty($this->config['from']['name']))
+		if(empty($this->to) and empty($this->cc) and empty($this->bcc))
 		{
 			throw new \Fuel_Exception('Cannot send email without recipients.');
 		}
-		
-		if($from = $this->get_config('from.email', false) or empty($from))
+
+		if(($from = $this->get_config('from.email', false)) === false or empty($from))
 		{
-			throw new \Fuel_Excetion('Cannot send without from address.');
+			throw new \Fuel_Exception('Cannot send without from address.');
 		}
 		
 		is_bool($validate) or $validate = $this->get_config('validate', true);
 		
-		if($validate and ! $this->validate_email)
+		if($validate and ($failed = $this->validate_addresses()) !== true)
 		{
 			return \Email::FAILED_VALIDATION;
 		}

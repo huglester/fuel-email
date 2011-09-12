@@ -17,7 +17,7 @@ class Email_Driver_Mail extends \Email_Driver {
 
 	protected function _send()
 	{
-		
+		return false;
 	}
 
 }
