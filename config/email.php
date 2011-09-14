@@ -10,7 +10,7 @@ return array(
 		/**
 		 * Mail useragent string
 		 */
-		'user_agent'	=> 'Fuel, PHP 5.3 Framework',
+		'useragent'	=> 'Fuel, PHP 5.3 Framework',
 		/**
 		 * Mail driver (mail, smpt, sendmail)
 		 */
@@ -25,6 +25,11 @@ return array(
 		 * Email charset
 		 */
 		'charset'		=> 'utf-8',
+		
+		/**
+		 * Ecoding (8bit, base64 or quoted-printable)
+		 */
+		'encoding'		=> '8bit',
 		
 		/**
 		 * Email priority
@@ -69,7 +74,7 @@ return array(
 		 * Newline 
 		 */
 		'newline'	=> "\n",
-		'crfl'		=> "\n",
+		'crlf'		=> "\n",
 	),
 	
 	/**

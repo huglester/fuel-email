@@ -65,6 +65,16 @@ abstract class Email_Driver {
 	protected $invalid_addresses = array();
 	
 	/**
+	 * Message boundaries
+	 */
+	protected $boundaries = array();
+	
+	/**
+	 * Message headers
+	 */
+	protected $headers = array();
+	
+	/**
 	 * Driver constructor
 	 *
 	 * @param	array	$config		driver config
@@ -80,7 +90,7 @@ abstract class Email_Driver {
 	 * @param	string		$key		the config key
 	 * @return	mixed					the config setting value
 	 */
-	public function get_config($key, $default)
+	public function get_config($key, $default = null)
 	{
 		return \Arr::get($this->config, $key, $default);
 	}
@@ -201,7 +211,7 @@ abstract class Email_Driver {
 	/**
 	 * Clear the a recipient list.
 	 *
-	 * 
+	 * @param	string|array	$list	list or array of lists
 	 * @return	void
 	 */
 	protected function clear_list($list)
@@ -212,6 +222,35 @@ abstract class Email_Driver {
 		{
 			$this->{$_list} = array();
 		}
+	}
+	
+	/**
+	 * Clear all recipient lists.
+	 *
+	 * @return	object	$this
+	 */
+	public function clear_recipients()
+	{
+		static::clear_list(array('to', 'cc', 'bcc'));
+		
+		return $this;
+	}
+	
+	/**
+	 * Clear all address lists.
+	 *
+	 * @return	object	$this
+	 */
+	public function clear_addresses()
+	{
+		static::clear_list(array('to', 'cc', 'bcc', 'reply_to'));
+		
+		$this->set_config('from', array(
+			'name' => false,
+			'email' => false,
+		));
+		
+		return $this;
 	}
 	
 	/**
@@ -270,12 +309,12 @@ abstract class Email_Driver {
 	 */
 	public function attach($file, $inline = false, $mime = null)
 	{
-		// File not found? Give 'm hell!
 		if( ! is_array($file))
 		{
 			$file = array($file, pathinfo($file, PATHINFO_BASENAME));
 		}
 		
+		// File not found? Give 'm hell!
 		if( ! is_file($file[0]))
 		{
 			throw new \AttachmentNotFoundException('Email attachment not found: '.$file);
@@ -356,9 +395,23 @@ abstract class Email_Driver {
 		
 		return $failed;
 	}
+	
+	/**
+	 * Sets unique message boundaries
+	 */
+	protected function set_boundaries()
+	{
+		$uniq_id = md5(uniqid(microtime(true)));
+		$this->boundary[1] = 'B1_'.$uniq_id;
+		$this->boundary[2] = 'B2_'.$uniq_id;
+		$this->boundary[3] = 'b3_'.$uniq_id;
+	}
 		
 	/**
 	 * Initiates the sending process.
+	 *
+	 * @param	mixed	whether to validate the addresses, falls back to config setting 
+	 * @return	bool	success boolean
 	 */
 	public function send($validate = null)
 	{
@@ -372,12 +425,41 @@ abstract class Email_Driver {
 			throw new \Fuel_Exception('Cannot send without from address.');
 		}
 		
+		// Check which validation bool to use
 		is_bool($validate) or $validate = $this->get_config('validate', true);
 		
+		// Validate the email addresses if specified
 		if($validate and ($failed = $this->validate_addresses()) !== true)
 		{
 			return \Email::FAILED_VALIDATION;
 		}
+		
+		// Reset the headers
+		$this->headers = array();
+		
+		// Set the email boundries
+		$this->set_boundaries();
+		
+		// Set RFC 822 formatted date
+		$this->set_header('Date', date('r'));
+		
+		// Set return path
+		$this->set_header('Return-Path', $this->get_config('from.email'));
+		
+		// Set from
+		$this->set_header('From', static::format_addresses(array($this->get_config('from'))));
+		
+		// Set message id
+		$this->set_header('Message-ID', $this->get_message_id());
+		
+		// Set mime version
+		$this->set_header('Mime-Version', '1.0');
+		
+		// Set priority
+		$this->set_header('X-Priority', $this->get_config('priority'));
+		
+		// Set mailer useragent
+		$this->set_header('X-Mailer', $this->get_config('useragent'));
 		
 		if( ! $this->_send())
 		{
@@ -385,6 +467,85 @@ abstract class Email_Driver {
 		}
 		
 		return \Email::SEND;
+	}
+	
+	/**
+	 * Sets the message headers
+	 *
+	 * @param	string	$header	the header type
+	 * @param	string	$value	the header value
+	 */
+	protected function set_header($header, $value)
+	{
+		empty($value) or $this->headers[$header] = $value;
+	}
+	
+	/**
+	 * Gets the header
+	 *
+	 * @param	string	$header		the header time
+	 * @return	string	mail header
+	 */
+	protected function get_header($header)
+	{
+		if(array_key_exists($header, $this->headers))
+		{
+			return $header.': '.$this->headers[$header].$this->get_config('newline', "\r\n");
+		}
+		
+		return '';
+	}
+	
+	/**
+	 * Get a unique message id
+	 */
+	protected function get_message_id()
+	{
+		$from = $this->get_config('from.email');
+		return "<".uniqid('').strstr($from, '@').">";
+	}
+	
+	/**
+	 * Standardize newlines.
+	 *
+	 * @param	string	$string		string to prep
+	 */
+	protected static function prep_newlines($string)
+	{
+		return str_replace(array(
+			"\r\n"	=> "\n",
+			"\r"	=> "\n",
+			"\n"	=> $this->get_config('newline'),
+		));
+	}
+	
+	/**
+	 * Encodes a string in the given encoding.
+	 *
+	 * @param	string	$string		string to encode
+	 * @param	string	$encoding	the encoding
+	 */
+	protected static function encode_string($string, $encoding)
+	{
+		
+	}
+	
+	/**
+	 * Returns a formatted string of email addresses.
+	 *
+	 * @param	array	$addresses	array of adresses array(array(name=>name, email=>email));
+	 */
+	protected static function format_addresses($addresses)
+	{
+		$return = array();
+		
+		foreach($addresses as $recipient)
+		{
+			$recipient['name'] and $recipient['email'] = $recipient['name'].' <'.$recipient['email'].'>';
+			$return[] = $recipient['email'];
+		}
+		
+		return join(', ', $return);
 	}
 	
 	/**
