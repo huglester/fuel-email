@@ -524,10 +524,21 @@ abstract class Email_Driver {
 	 *
 	 * @param	string	$string		string to encode
 	 * @param	string	$encoding	the encoding
+	 * @return	string	encoded string
 	 */
-	protected static function encode_string($string, $encoding)
-	{
-		
+	public static function encode_string($string, $charset)
+	{	
+		$end = "?=";
+		$start = '=?' . $charset . '?B?';
+		$spacer = $end . "\r\n " . $start;
+		$length = 75 - strlen($start) - strlen($end);
+		$length = $length - ($length % 4);
+		$string = base64_encode($string);
+		$string = chunk_split($string, $length, $spacer);
+		$spacer = preg_quote($spacer);
+		$string = preg_replace("/" . $spacer . "$/", '', $string);
+		$string = $start . $string . $end;
+		return $string;
 	}
 	
 	/**
