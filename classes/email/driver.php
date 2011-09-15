@@ -2,12 +2,12 @@
 /**
  * Fuel is a fast, lightweight, community driven PHP5 framework.
  *
- * @package    Fuel
- * @version    1.0
- * @author     Fuel Development Team
- * @license    MIT License
- * @copyright  2010 - 2011 Fuel Development Team
- * @link       http://fuelphp.com
+ * @package		Fuel
+ * @version		1.0
+ * @author 		Fuel Development Team
+ * @license		MIT License
+ * @copyright	2010 - 2011 Fuel Development Team
+ * @link 			http://fuelphp.com
  */
 
 namespace Email;
@@ -484,13 +484,20 @@ abstract class Email_Driver {
 	 * Gets the header
 	 *
 	 * @param	string	$header		the header time
-	 * @return	string	mail header
+	 * @return	string|array		mail header or array of headers
 	 */
-	protected function get_header($header)
+	private function get_header($header = null, $formatted = true)
 	{
+		if($header === null)
+		{
+			return $this->headers;
+		}
+		
 		if(array_key_exists($header, $this->headers))
 		{
-			return $header.': '.$this->headers[$header].$this->get_config('newline', "\r\n");
+			$prefix = ($formatted) ? $header.': ' : '';
+			$suffix = ($formatted) ? $this->get_config('newline', "\r\n") : '';
+			return $prefix.$this->headers[$header].$suffix;
 		}
 		
 		return '';
@@ -498,11 +505,178 @@ abstract class Email_Driver {
 	
 	/**
 	 * Get a unique message id
+	 *
+	 * @return	string	the message id
 	 */
 	protected function get_message_id()
 	{
 		$from = $this->get_config('from.email');
 		return "<".uniqid('').strstr($from, '@').">";
+	}
+	
+	/**
+	 * Returns the mail's content type
+	 *
+	 * @return	string		mail content type
+	 */
+	protected function get_content_type()
+	{
+		$type = ($this->get_config('is_html', false)) ? 'html' : 'plain' ;
+		
+		$attach = (count($this->attachments)) ? '-attach' : '';
+		
+		return $type.$attach;
+	}
+	
+	/**
+	 * Returns the uft8 character boundary
+	 *
+	 *
+	 *
+	 */
+	public function utf8_char_boundary($encoded_text, $max_length) {
+		$found_split_pos = false;
+		$look_back = 3;
+		while ( ! $found_split_pos)
+		{
+			$last_chunk = substr($encoded_text, $max_length - $look_back, $look_back);
+			$encoded_char_pos = strpos($last_chunk, '=');
+			if($encoded_char_pos !== false)
+			{
+				// Found start of encoded character byte within $lookBack block.
+				// Check the encoded byte value (the 2 chars after the '=')
+				$hex = substr($encoded_text, $max_length - $look_back + $encoded_char_pos + 1, 2);
+				$dec = hexdec($hex);
+				if($dec < 128)
+				{ 
+					// Single byte character.
+					// If the encoded char was found at pos 0, it will fit
+					// otherwise reduce maxLength to start of the encoded char
+					$max_length = ($encoded_char_pos == 0) ? $max_length :
+					$max_length - ($look_back - $encoded_char_pos);
+					$found_split_pos = true;
+				}
+				elseif($dec >= 192)
+				{
+					// First byte of a multi byte character
+					// Reduce maxLength to split at start of character
+					$max_length = $max_length - ($look_back - $encoded_char_pos);
+					$foundSplitPos = true;
+				}
+				elseif($dec < 192)
+				{
+					// Middle byte of a multi byte character, look further back
+					$lookBack += 3;
+				}
+			}
+			else
+			{
+				// No encoded character found
+				$found_split_pos = true;
+			}
+		}
+		return $maxLength;
+	}
+	
+	public function wrap_text($message, $length, $qp_mode = false)
+	{
+		$soft_break = ($qp_mode) ? sprintf(" =%s", $this->LE) : $this->LE;
+		// If utf-8 encoding is used, we will need to make sure we don't
+		// split multibyte characters when we wrap
+		$is_utf8 = (strtolower($this->get_config('charset')) == "utf-8");
+
+		$message = $this->prep_newlines($message);
+		$message = rtrim($message, $this->get_config('newline'));
+
+		$line = explode($this->get_config('newline'), $message);
+		$message = '';
+		for($i = 0 ;$i < count($line); $i++)
+		{
+			$line_part = explode(' ', $line[$i]);
+			$buf = '';
+			for($e = 0; $e < count($line_part); $e++)
+			{
+				$word = $line_part[$e];
+				if ($qp_mode and (strlen($word) > $length))
+				{
+					$space_left = $length - strlen($buf) - 1;
+					if($e != 0)
+					{
+						if($space_left > 20)
+						{
+							$len = $space_left;
+							
+							if($is_utf8)
+							{
+								$len = $this->utf8_char_boundary($word, $len);
+							}
+							elseif (substr($word, $len - 1, 1) == "=")
+							{
+								$len--;
+							}
+							elseif(substr($word, $len - 2, 1) == "=")
+							{
+								$len -= 2;
+							}
+							
+							$part = substr($word, 0, $len);
+							$word = substr($word, $len);
+							$buf .= ' ' . $part;
+							$message .= $buf . sprintf("=%s", $this->get_config('newline'));
+						}
+						else
+						{
+							$message .= $buf . $soft_break;
+						}	
+						$buf = '';
+					}
+					
+					while(strlen($word) > 0)
+					{
+						$len = $length;
+						
+						if($is_utf8)
+						{
+							$len = $this->utf8_char_boundary($word, $len);
+						}
+						elseif(substr($word, $len - 1, 1) === '=')
+						{
+							$len--;
+						}
+						elseif(substr($word, $len - 2, 1) === '=')
+						{
+							$len -= 2;
+						}
+						
+						$part = substr($word, 0, $len);
+						$word = substr($word, $len);
+
+						if(strlen($word) > 0)
+						{
+							$message .= $part . sprintf("=%s", $this->get_config('newline'));
+						}
+						else
+						{
+							$buf = $part;
+						}
+					}
+				}
+				else
+				{
+					$buf_o = $buf;
+					$buf .= ($e == 0) ? $word : (' ' . $word);
+
+					if(strlen($buf) > $length and $buf_o != '')
+					{
+						$message .= $buf_o . $soft_break;
+						$buf = $word;
+					}
+				}
+			}
+			$message .= $buf . $this->get_config('newline');
+		}
+
+		return $message;
 	}
 	
 	/**
@@ -539,6 +713,18 @@ abstract class Email_Driver {
 		$string = preg_replace("/" . $spacer . "$/", '', $string);
 		$string = $start . $string . $end;
 		return $string;
+	}
+	
+	/**
+	 * Wordwraps a string
+	 *
+	 * @param	string	$string	string to wrap
+	 * @param	int		$length	the max line length
+	 * @return	string	wrapped text
+	 */
+	protected static function wrap_string($string, $length = 76)
+	{
+		$length = ($length < 0) ? $length : 76;
 	}
 	
 	/**

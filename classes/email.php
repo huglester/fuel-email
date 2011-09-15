@@ -86,7 +86,7 @@ class Email {
 	 * @param	string	$method		method name called
 	 * @param	array	$args		supplied arguments
 	 */
-	public static function __callStatic($method, $args)
+	public static function __callStatic($method, $args = array())
 	{
 		if(static::$_instance === false)
 		{
@@ -94,7 +94,7 @@ class Email {
 			static::$_instance = &$instance;
 		}
 		
-		if(method_exists(static::$_instance, $method))
+		if(is_callable(array(static::$_instance, $method)))
 		{
 			return call_user_func_array(array(static::$_instance, $method), $args);
 		}
