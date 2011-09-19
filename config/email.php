@@ -50,6 +50,16 @@ return array(
 		'validate'	=> true,
 		
 		/**
+		 * Auto attach inline files
+		 */
+		'auto_attach' => true,
+		
+		/**
+		 * Auto generate alt body from html body
+		 */
+		'generate_alt' => true,
+		
+		/**
 		 * Wordwrap size, set to null, 0 or false to disable wordwrapping
 		 */
 		'wordwrap'	=> 76,
@@ -74,7 +84,6 @@ return array(
 		 * Newline 
 		 */
 		'newline'	=> "\n",
-		'crlf'		=> "\n",
 	),
 	
 	/**

@@ -14,8 +14,9 @@ namespace Email;
 
 class AttachmentNotFoundException extends \Fuel_Exception {}
 
-class SendEmailException extends \Fuel_Exception {}
+class InvalidAttachmentsException extends \Fuel_Exception {}
 
+class InvalidEmailStringEncoding extends \Fuel_Exception {}
 
 class Email {
 
