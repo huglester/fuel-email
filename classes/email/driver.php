@@ -144,6 +144,19 @@ abstract class Email_Driver {
 	}
 	
 	/**
+	 * Sets the mail priority
+	 *
+	 * @param	string		$priority			the message priority
+	 * @return	object		$this
+	 */
+	public function proirity($priority)
+	{
+		$this->config['proirity'] = $priority;
+		
+		return $this;
+	}
+	
+	/**
 	 * Sets the html body and optionally a generated alt body.
 	 *
 	 * @param	string	$html 			the body html
