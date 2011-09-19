@@ -677,8 +677,8 @@ abstract class Email_Driver {
 		// Set wordwrapping
 		$wrapping = $this->config['wordwrap'];
 		$qp_mode = $encoding === 'quoted-printable';
-		$wrapping and $this->body = static::wrap_text($this->body, $wrapping, $charset, $newline, $qp_mode);
-		$wrapping and $this->alt_body = static::wrap_text($this->alt_body, $wrapping, $charset, $newline, $qp_mode);
+		$wrapping and $this->body = static::wrap_text(static::encode_string($this->body, $encoding, $newline), $wrapping, $charset, $newline, $qp_mode);
+		$wrapping and $this->alt_body = static::wrap_text(static::encode_string($this->alt_body, $encoding, $newline), $wrapping, $charset, $newline, $qp_mode);
 		
 		if( ! $this->_send())
 		{
