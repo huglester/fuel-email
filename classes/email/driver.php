@@ -608,6 +608,7 @@ abstract class Email_Driver {
 		// Validate the email addresses if specified
 		if($validate and ($failed = $this->validate_addresses()) !== true)
 		{
+			$this->invalid_addresses = $failed;
 			return \Email::FAILED_VALIDATION;
 		}
 		
@@ -686,6 +687,16 @@ abstract class Email_Driver {
 		}
 		
 		return \Email::SEND;
+	}
+	
+	/**
+	 * Get the invalid addresses
+	 *
+	 * @return	array	an array of invalid email addresses
+	 */
+	public function get_invalid_addresses()
+	{
+		return $this->invalid_addresses;
 	}
 	
 	/**
