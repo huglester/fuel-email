@@ -118,15 +118,27 @@ abstract class Email_Driver {
 	}
 	
 	/**
-	 * Sets the body, and generates the alt body if specified. Which will also set it to a html mail.
+	 * Sets the body
 	 *
 	 * @param	string		$body			the message body
-	 * @param	bool		$generate_alt	whether to generate the alt body, will set is html to true
 	 * @return	object		$this
 	 */
 	public function body($body)
 	{
 		$this->body = (string) $body;
+		
+		return $this;
+	}
+	
+	/**
+	 * Sets the alt body
+	 *
+	 * @param	string		$alt_body			the message alt body
+	 * @return	object		$this
+	 */
+	public function alt_body($alt_body)
+	{
+		$this->alt_body = (string) $alt_body;
 		
 		return $this;
 	}
